@@ -1,10 +1,10 @@
-## Welcome to the GhentCDH software repos!
+## Hi, we are GhentCDH!
 
 Hey there! 👋 We're the research software engineers at the Ghent Centre for Digital Humanities (GhentCDH). At GhentCDH we are diving deep into the fascinating world of Digital Humanities at Ghent University. From unearthing ancient artifacts to dissecting language patterns, we're all about using tech to explore the humanities.
 
 ## Who We Are
 
-We're a bunch of developers with a mission to collaborate, support, and elevate DH research projects, teaching endeavors, and infrastructure initiatives across the university and beyond.
+We're a bunch of developers with a mission to collaborate, support, and elevate DH research projects, teaching endeavors, and infrastructure initiatives across Ghent University and beyond.
 
 ## What We Do
 
