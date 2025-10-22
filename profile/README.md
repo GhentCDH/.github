@@ -11,6 +11,8 @@ We offer:
 * Custom development work
 * So much more!
 
+
+
 ## Who We Are
 
 We're a bunch of developers with a mission to collaborate, support, and elevate DH research projects, teaching endeavors, and infrastructure initiatives across Ghent University and beyond. Want to know more about our colourful backgrounds? Learn more about our team via the [GhentCDH Team page](https://www.ghentcdh.ugent.be/team)! 🦾
@@ -87,4 +89,11 @@ We can help you to:
 
 
 ## Connect with Us
-Find out more about us and the projects we work on via the [GhentCDH website](https://www.ghentcdh.ugent.be/)
+Find out more about us and the projects we work on via the [GhentCDH website](https://ghentcdh.ugent.be/)
+
+<p align="center">
+  <a href="https://ghentcdh.ugent.be/">
+    <img src="https://github.com/user-attachments/assets/0c250234-4036-4ffd-b95f-55029f6c8125" alt="GhentDH logo - landscape" width="70%">
+  </a>
+</p>
+
