@@ -1,0 +1,156 @@
+# Reusable workflow: build a Docker image and publish it to the GitHub
+# Container Registry (ghcr.io). Same inputs as dockerhub-publish.yaml, so a
+# project can switch between the two by changing `uses:`.
+#
+# Caller example:
+#
+#   jobs:
+#     publish:
+#       permissions:
+#         contents: read
+#         packages: write   # required: a called workflow cannot raise its own permissions
+#       uses: GhentCDH/.github/.github/workflows/ghcr-publish.yaml@v1
+#       with:
+#         image: ghentcdh/my-app   # published as ghcr.io/ghentcdh/my-app
+#
+# No secrets are needed: the workflow logs in with the caller's GITHUB_TOKEN.
+#
+# Which images get published depends on when the caller runs this workflow:
+#   version tag v1.2.3  -> 1.2.3, 1.2, 1 and latest (no latest for pre-releases)
+#   push to a branch    -> the branch name
+#   pull request        -> pr-<number>
+# Set `push: false` to only build, e.g. `push: ${{ github.event_name != 'pull_request' }}`
+# for a build check on pull requests.
+#
+# Packages published from a private repository are private: to pull them, a
+# server needs `docker login ghcr.io` with a classic personal access token with
+# the read:packages scope (GHCR does not accept fine-grained tokens).
+#
+# The build cache is kept in the registry as <image>:buildcache, so every run
+# (tags, branches, pull requests) can reuse it.
+name: GHCR publish
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Image name without registry, lowercase, e.g. ghentcdh/my-app
+        required: true
+        type: string
+      tags:
+        description: docker/metadata-action tag rules (one per line)
+        required: false
+        type: string
+        default: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+      flavor:
+        description: docker/metadata-action flavor; empty means latest=auto (latest on every non-prerelease semver tag)
+        required: false
+        type: string
+        default: ''
+      context:
+        description: Build context
+        required: false
+        type: string
+        default: .
+      file:
+        description: Dockerfile path (default <context>/Dockerfile)
+        required: false
+        type: string
+        default: ''
+      target:
+        description: Build stage to target in a multi-stage Dockerfile
+        required: false
+        type: string
+        default: ''
+      build-args:
+        description: Build arguments (one NAME=value per line)
+        required: false
+        type: string
+        default: ''
+      platforms:
+        description: Target platforms, e.g. linux/amd64,linux/arm64
+        required: false
+        type: string
+        default: linux/amd64
+      push:
+        description: Push the image; false only builds (e.g. a build check on pull requests)
+        required: false
+        type: boolean
+        default: true
+    outputs:
+      tags:
+        description: The image tags
+        value: ${{ jobs.publish.outputs.tags }}
+      digest:
+        description: The image digest
+        value: ${{ jobs.publish.outputs.digest }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        if: inputs.platforms != 'linux/amd64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ inputs.image }}
+          tags: ${{ inputs.tags }}
+          flavor: ${{ inputs.flavor }}
+
+      - name: Check image tags
+        if: inputs.push
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ -z "$TAGS" ]; then
+            echo "::error::No image tags for $REF. Run this from a version tag (vX.Y.Z), or add tag rules for this event."
+            exit 1
+          fi
+          echo "Publishing:"
+          echo "$TAGS"
+
+      # Also when only building: reading the cache of a private package needs a login.
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.file }}
+          target: ${{ inputs.target }}
+          build-args: ${{ inputs.build-args }}
+          platforms: ${{ inputs.platforms }}
+          push: ${{ inputs.push }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=ghcr.io/${{ inputs.image }}:buildcache
+          # ignore-error: pull requests from forks get a read-only token and cannot write the cache
+          cache-to: type=registry,ref=ghcr.io/${{ inputs.image }}:buildcache,mode=max,ignore-error=true

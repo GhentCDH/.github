@@ -1,17 +1,26 @@
 # Reusable workflow: build a Docker image and publish it to Docker Hub.
+# Same inputs as ghcr-publish.yaml, so a project can switch between the two by
+# changing `uses:`.
 #
-# Caller example (see README.md):
+# Caller example:
 #
 #   jobs:
 #     publish:
 #       uses: GhentCDH/.github/.github/workflows/dockerhub-publish.yaml@v1
 #       with:
 #         image: ghentcdh/my-app
-#       secrets: inherit   # provides DOCKERHUB_USERNAME / DOCKERHUB_TOKEN
+#       secrets: inherit   # passes DOCKERHUB_USERNAME / DOCKERHUB_TOKEN
+#
+# Secrets: GhentCDH is on the GitHub Free plan, where organization secrets only
+# reach public repositories. A private repository needs its own repository
+# secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN (secrets: inherit passes those).
 #
 # Which images get published depends on when the caller runs this workflow:
-# a version tag v1.2.3 gives 1.2.3, 1.2, 1 and latest; a branch push gives the
-# branch name; a pull request gives pr-<number>.
+#   version tag v1.2.3  -> 1.2.3, 1.2, 1 and latest (no latest for pre-releases)
+#   push to a branch    -> the branch name
+#   pull request        -> pr-<number>
+# Set `push: false` to only build, e.g. `push: ${{ github.event_name != 'pull_request' }}`
+# for a build check on pull requests (no login and no secrets needed then).
 name: Docker Hub publish
 
 on:
@@ -57,16 +66,21 @@ on:
         type: string
         default: ''
       platforms:
-        description: Target platforms
+        description: Target platforms, e.g. linux/amd64,linux/arm64
         required: false
         type: string
         default: linux/amd64
+      push:
+        description: Push the image; false only builds (e.g. a build check on pull requests)
+        required: false
+        type: boolean
+        default: true
     secrets:
       DOCKERHUB_USERNAME:
-        description: Docker Hub user (the GhentCDH organization secret, via secrets inherit)
+        description: Docker Hub user (via secrets inherit; repository secret in private repositories)
         required: false
       DOCKERHUB_TOKEN:
-        description: Docker Hub access token (the GhentCDH organization secret, via secrets inherit)
+        description: Docker Hub access token (via secrets inherit; repository secret in private repositories)
         required: false
     outputs:
       tags:
@@ -88,6 +102,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        if: inputs.platforms != 'linux/amd64'
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -100,6 +118,7 @@ jobs:
           flavor: ${{ inputs.flavor }}
 
       - name: Check image tags
+        if: inputs.push
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           REF: ${{ github.ref }}
@@ -112,6 +131,7 @@ jobs:
           echo "$TAGS"
 
       - name: Login to Docker Hub
+        if: inputs.push
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -126,8 +146,9 @@ jobs:
           target: ${{ inputs.target }}
           build-args: ${{ inputs.build-args }}
           platforms: ${{ inputs.platforms }}
-          push: true
+          push: ${{ inputs.push }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=docker.io/${{ inputs.image }}:buildcache
-          cache-to: type=registry,ref=docker.io/${{ inputs.image }}:buildcache,mode=max
+          # only when pushing: a build-only run is not logged in and cannot write the cache
+          cache-to: ${{ inputs.push && format('type=registry,ref=docker.io/{0}:buildcache,mode=max,ignore-error=true', inputs.image) || '' }}
