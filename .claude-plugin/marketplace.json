@@ -1,0 +1,16 @@
+{
+  "name": "ghentcdh",
+  "owner": {
+    "name": "GhentCDH"
+  },
+  "metadata": {
+    "description": "Agent integration for GhentCDH's shared GitHub workflows."
+  },
+  "plugins": [
+    {
+      "name": "workflows",
+      "source": "./agent/plugin",
+      "description": "Skills that make agents use GhentCDH's shared GitHub Actions workflows instead of writing their own."
+    }
+  ]
+}

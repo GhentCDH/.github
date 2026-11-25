@@ -1,0 +1,7 @@
+{
+  "name": "workflows",
+  "description": "Use GhentCDH's shared GitHub Actions workflows (Docker image build and publish to GHCR or Docker Hub) when setting up CI for a project.",
+  "author": { "name": "GhentCDH" },
+  "repository": "https://github.com/GhentCDH/.github",
+  "keywords": ["github-actions", "ci", "docker", "ghcr", "dockerhub"]
+}

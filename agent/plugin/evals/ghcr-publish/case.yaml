@@ -1,0 +1,5 @@
+schema_version: "1.1"
+name: ghcr-publish
+context:
+  # Creates a small project with a Dockerfile and a GhentCDH remote.
+  scaffold_script: setup.sh

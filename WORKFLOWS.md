@@ -74,3 +74,28 @@ Outputs: `tags`, `digest`.
 | pull request | `pr-<number>` |
 
 Build check on PRs without publishing: `push: ${{ github.event_name != 'pull_request' }}`.
+
+## Claude Code
+
+This repository is also a Claude Code plugin marketplace (`ghentcdh`). Its
+`workflows` plugin (`agent/plugin/`) has a `docker-publish` skill, so Claude
+Code uses these shared workflows when someone asks it for a build or publish
+workflow. It is enabled for the whole organization through the Claude Code
+managed settings in the claude.ai admin console:
+
+```json
+"extraKnownMarketplaces": {
+  "ghentcdh": { "autoUpdate": true, "source": { "source": "github", "repo": "GhentCDH/.github" } }
+},
+"enabledPlugins": { "workflows@ghentcdh": true }
+```
+
+Manual install: `/plugin marketplace add GhentCDH/.github`, then
+`/plugin install workflows@ghentcdh`.
+
+When you change a workflow's inputs or behaviour, update
+`agent/plugin/skills/docker-publish/SKILL.md` too, and run the evals:
+
+```sh
+claude plugin eval agent/plugin --scaffold --allow-tools Write Bash
+```
